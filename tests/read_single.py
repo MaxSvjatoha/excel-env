@@ -5,7 +5,7 @@ import os
 # Source: https://stackoverflow.com/questions/70395407/import-module-from-a-sibling-directory-in-python3-10/73081295#73081295
 sys.path.insert(0, '.')
 
-from utils import util as utils
+import utils.util as utils
 
 if __name__ == '__main__':
     # Generate an excel file
