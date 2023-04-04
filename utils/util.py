@@ -3,7 +3,7 @@ from openpyxl import Workbook
 import numpy as np
 import pandas as pd
 
-from typing import List, Dict, Union
+from typing import List, Dict, Union, Any
 
 import difflib
 
@@ -106,7 +106,39 @@ def excel_to_dict(file_path: str, sheet_name: str) -> Dict[str, list]:
         return {}
     return result_dict
 
-def normalize_list(data: Union[List[str], str] = '') -> List[str]:
+def dict_to_excel(input_dict: Dict, save_name: str = 'output.xlsx') -> int:
+    '''
+    Convert a dictionary to an excel file and save it to the current working directory
+
+    Args:
+        input_dict (dict): Dictionary to convert to excel file
+        save_name (str): Name of the excel file to save
+
+    Returns:
+        int: 0 if successful, 1 if not
+    '''
+    # Make sure the save name is valid
+    if save_name == '':
+        print('[dict_to_excel] Error: Save name cannot be empty')
+        return 1
+    if save_name == 'output.xlsx':
+        print('[dict_to_excel] Warning: Save name is the default "output.xlsx". Consider changing it.')
+    if not save_name.endswith('.xlsx'):
+        save_name += '.xlsx'
+        print(f'[dict_to_excel] Warning: Save name does not end with .xlsx. Automatically appending .xlsx to save name')
+
+    # Convert the dictionary to a pandas dataframe
+    df = pd.DataFrame(input_dict)
+
+    # Save the dataframe to an excel file
+    try:
+        df.to_excel(os.path.join(os.getcwd(), save_name), index=False)
+        return 0
+    except Exception as e:
+        print(e)
+        return 1
+
+def normalize_list(data: Union[List[str], str] = '', keep_originals: bool = False) -> Any:
     '''
     Use a lambda function to normalize the list values by removing all non-alphanumeric characters and converting to lowercase
     Source: https://stackoverflow.com/questions/1276764/stripping-everything-but-alphanumeric-chars-from-a-string-in-python/1276779#1276779
@@ -126,7 +158,16 @@ def normalize_list(data: Union[List[str], str] = '') -> List[str]:
             return []
         data = [data]
 
-    return list(map(lambda x: ''.join(e for e in x if e.isalnum()).lower(), data))
+    out_list = list(map(lambda x: ''.join(e for e in x if e.isalnum()).lower(), data))
+
+    # Map the original values to the normalized values
+    if keep_originals:
+        # map input data : output data in a dictionary
+        out_dict = {k: v for k, v in list(zip(data, out_list))}        
+    
+        return out_list, out_dict
+    else:
+        return out_list
     
 def match_lists(list_1: List, list_2: List) -> Dict:
     '''
@@ -161,8 +202,16 @@ def match_lists(list_1: List, list_2: List) -> Dict:
     Returns:
         Dict: Output dictionary with the above structure
     '''
+
+    # Make sure the lists are not empty
+    if len(list_1) == 0:
+        print('[match_lists] Error: List 1 is empty')
+        return {}
+    if len(list_2) == 0:
+        print('[match_lists] Error: List 2 is empty')
+        return {}
+
     output_dict = {}
-    print(f"List 1: {list_1}")
 
     for item in list_1:
         best_match = 0

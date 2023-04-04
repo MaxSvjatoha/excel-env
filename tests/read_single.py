@@ -1,5 +1,4 @@
 import sys
-import os
 
 # Allows imports from sibling directories
 # Source: https://stackoverflow.com/questions/70395407/import-module-from-a-sibling-directory-in-python3-10/73081295#73081295
