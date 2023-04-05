@@ -106,6 +106,24 @@ def excel_to_dict(file_path: str, sheet_name: str) -> Dict[str, list]:
         return {}
     return result_dict
 
+def excel_to_workbook(file_path: str) -> Union[Workbook, None]:
+    '''
+    Read an Excel file and return an openpyxl workbook
+
+    Args:
+        file_path (str): Path to the Excel file
+
+    Returns:
+        openpyxl.workbook.workbook.Workbook: Workbook object
+    '''
+    try:
+        wb = Workbook()
+        wb = wb.load_workbook(file_path)
+        return wb
+    except Exception as e:
+        print(f"[excel_to_workbook] Error: {e}")
+        return None
+
 def dict_to_excel(input_dict: Dict, save_name: str = 'output.xlsx') -> int:
     '''
     Convert a dictionary to an excel file and save it to the current working directory
@@ -133,6 +151,29 @@ def dict_to_excel(input_dict: Dict, save_name: str = 'output.xlsx') -> int:
     # Save the dataframe to an excel file
     try:
         df.to_excel(os.path.join(os.getcwd(), save_name), index=False)
+        return 0
+    except Exception as e:
+        print(e)
+        return 1
+    
+def workbook_to_excel(input_workbook: Workbook, save_name: str = 'output.xlsx') -> int:
+    '''
+    Convert an openpyxl workbook to an excel file and save it to the current working directory
+    '''
+    
+    # Make sure the save name is valid
+    if save_name == '':
+        print('[openpyxl_to_excel] Error: Save name cannot be empty')
+        return 1
+    if save_name == 'output.xlsx':
+        print('[openpyxl_to_excel] Warning: Save name is the default "output.xlsx". Consider changing it.')
+    if not save_name.endswith('.xlsx'):
+        save_name += '.xlsx'
+        print(f'[openpyxl_to_excel] Warning: Save name does not end with .xlsx. Automatically appending .xlsx to save name')
+    
+    # Save the workbook to an excel file
+    try:
+        input_workbook.save(os.path.join(os.getcwd(), save_name))
         return 0
     except Exception as e:
         print(e)
