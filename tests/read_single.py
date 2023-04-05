@@ -19,5 +19,5 @@ if __name__ == '__main__':
     print(data)
 
     # Convert the excel file to a dictionary
-    data_dict = utils.excel_to_dict('test.xlsx', 'Sheet')
+    data_dict = utils.excel_to_dict('read_test.xlsx', 'Sheet')
     print(data_dict)

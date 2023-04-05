@@ -3,64 +3,128 @@ import sys
 
 import utils.util as utils
 
-import numpy as np
-import pandas as pd
-
 import openpyxl
 
+'''
+This script reads a single template excel file and tries to fill match its sheets to appropriate folders and files in the input folder.
+It then reads the data from the input files and saves it to the relevant sheets in the template file. 
+'''
+
+# Settings
+cwd = os.getcwd()
+parent = os.path.dirname(cwd)
+
+# Get template file
+template_folder_name = 'Aktivitetsdata Klimatbokslut.xlsx'
+
+# Get input folder list by scanning the parent folder for folders
+input_folder = 'Arbetsmapp datainsamling'
+input_folder_path = os.path.join(parent, input_folder)
+input_folder_names = os.listdir(input_folder_path)
+
+# Remove items that are not folders
+input_folder_names = [folder for folder in input_folder_names if os.path.isdir(os.path.join(input_folder_path, folder))]
+
+# Get template folder path
+template_folder_path = os.path.join(input_folder_path, template_folder_name)
+
+# Get a list of paths for each folder among the input folder names
+input_folder_paths = [os.path.join(input_folder_path, folder) for folder in input_folder_names]
+
+# Go into each input folder path and get a list of all excel files, then save them to a dictionary with the folder name as key
+# and the list of excel files as value. If there are no excel files in the folder, skip it.
+input_folder_excel_files = {}
+input_folder_excel_keys = []
+for folder_path in input_folder_paths:
+    folder_name = os.path.basename(folder_path)
+    folder_files = os.listdir(folder_path)
+    folder_excel_files = [file for file in folder_files if file.endswith('.xlsx')]
+    if len(folder_excel_files) > 0:
+        input_folder_excel_files[folder_name] = folder_excel_files # This will be a subdict with template sheet name as key and itself as the value
+        input_folder_excel_keys.append(folder_name)
+
+# Get a list of all sheets in the template file
+template_wb = openpyxl.load_workbook(template_folder_path)
+template_sheets = template_wb.sheetnames
+
+# Match template sheets to input folders
+matches = utils.match_lists(input_folder_excel_keys, template_sheets)
+
+# Check "matches" for multiple occurences of the same 'match' key in the subdict. If found, remove the subdict with the lowest 'score' value.
+for item in matches.copy(): # Use copy() to avoid RuntimeError: dictionary changed size during iteration
+    # Check if items score value is less than 1.0
+    if matches[item]['score'] < 1.0:
+        # Check if there are multiple occurences of the same 'match' key in the subdict
+        if len([match for match in matches if matches[match]['match'] == matches[item]['match']]) > 1:
+            # Remove the subdict with the lowest 'score' value
+            matches.pop(item)
+
+# We now have a filtered list with associations between template sheets and input folders! Now we want to fill in the subdicts with more relevant data.
+# This is now the base dict that we will use to store the data from the input files and then write it to the template file.
+base_dict = matches.copy()
+# Now we want to go through each folder in the input folder and read the excel files in them and store the data inside the base dict.
+for folder in input_folder_excel_files:
+    # Get the list of excel files in the folder
+    excel_files = input_folder_excel_files[folder]
+    # Go through each excel file in the list
+    for excel_file in excel_files:
+        # Get the excel file path
+        excel_file_path = os.path.join(input_folder_path, folder, excel_file)
+        print(f"Reading file: {excel_file_path}")
+        # Read the excel file to a list
+        wb = utils.excel_to_workbook(excel_file_path)
+        print(wb)
+        # Get the sheet names
+        sheet_names = wb.sheetnames
+        # Go through each sheet in the list and filter out sheets that do not contain 'scope' in the name
+        scope_sheets = [sheet for sheet in sheet_names if 'scope' in sheet.lower()]
+        # Go through each scope sheet and read the data. If a cell contain an int, store it as a value in a dict, with the precending cell value as a key.
+        for scope_sheet in scope_sheets:
+            print(f"Reading sheet: {scope_sheet}")
+            # Get the sheet
+            sheet = wb[scope_sheet]
+            # Get the max row and column
+            max_row = sheet.max_row
+            max_column = sheet.max_column
+            # Go through each row and column and read the data
+            for row in range(1, max_row + 1):
+                for column in range(1, max_column + 1):
+                    # Get the cell
+                    cell = sheet.cell(row=row, column=column)
+                    # Check if the cell contains an int
+                    if type(cell.value) == int:
+                        # Get the precending cell
+                        precending_cell = sheet.cell(row=row, column=column - 1)
+                        # Check if the precending cell contains a string
+                        if type(precending_cell.value) == str:
+                            # If precending cell contains "specificera", take instead the succeeding cell as the key
+                            if "specificera" in precending_cell.value.lower():
+                                # Get the succeeding cell
+                                succeeding_cell = sheet.cell(row=row, column=column + 1)
+                                # Check if the succeeding cell contains a string
+                                if type(succeeding_cell.value) == str:
+                                    # Store the data in the base dict
+                                    base_dict[folder][succeeding_cell.value] = cell.value
+                                else:
+                                    # The succeeding cell does not contain a string. Skip it.
+                                    continue
+                            else:
+                                # Store the data in the base dict
+                                base_dict[folder][precending_cell.value] = cell.value
+                        else:
+                            # The precending cell does not contain a string. Skip it.
+                            continue
+                    else:
+                        # The cell does not contain an int. Skip it.
+                        continue
+
+print(base_dict)
+
+sys.exit(0)
+
 if __name__ == '__main__':
-    
-    # get cwd
-    cwd = os.getcwd()
 
-    # get cwd's parent
-    parent = os.path.dirname(cwd)
+    print("Script started")
 
-    input_folder_name = 'Arbetsmapp datainsamling'
-
-    # get path to input folder
-    input_folder_path = os.path.join(parent, input_folder_name)
-
-    print(f"input_folder_path: {input_folder_path}")
-
-    # get all files in input folder
-    input_folder_subdirs = os.listdir(input_folder_path)
-
-    print(f"input_folder_subdirs: {input_folder_subdirs}")
-    
-    # Enter first subfolder and get all excel files
-    first_subfolder = input_folder_subdirs[0]
-    first_subfolder_path = os.path.join(input_folder_path, first_subfolder)
-    first_subfolder_files = os.listdir(first_subfolder_path)
-    first_subfolder_excel_files = [file for file in first_subfolder_files if file.endswith('.xlsx')]
-    print(f"first_subfolder_excel_files: {first_subfolder_excel_files}")
-    
-    # Read first excel file
-    first_excel_file = first_subfolder_excel_files[0]
-    first_excel_file_path = os.path.join(first_subfolder_path, first_excel_file)
-
-    # Now use openpyxl to read all sheets in first excel file and save them in cwd
-    wb = openpyxl.load_workbook(first_excel_file_path)
-    sheets = wb.sheetnames
-    print(f"sheets: {sheets}")
-    
-    # Filter out sheets that are not relevant - keep only those with "scope" in the name
-    sheets = [sheet for sheet in sheets if 'scope' in sheet.lower()]
-    print(f"sheets: {sheets}")
-
-    # Print all workbook data
-    for sheet in sheets:
-        ws = wb[sheet]
-        print(f"ws: {ws}")
-        for row in ws.iter_rows():
-            for cell in row:
-                print(cell.value, type(cell.value))
-    
-    # Save entire workbook to cwd
-    utils.workbook_to_excel(input_workbook = wb, save_name = 'test.xlsx')
-
+    print("Script finished successfully")
     sys.exit(0)
-    
-    
-    
-        

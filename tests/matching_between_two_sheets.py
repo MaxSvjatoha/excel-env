@@ -1,8 +1,8 @@
 import sys
 
 # Settings
-save_name_1 = 'input_test1.xlsx'
-save_name_2 = 'input_test2.xlsx'
+save_name_1 = 'matching_input_test1.xlsx'
+save_name_2 = 'matching_input_test2.xlsx'
 
 # Allows imports from sibling directories
 # Source: https://stackoverflow.com/questions/70395407/import-module-from-a-sibling-directory-in-python3-10/73081295#73081295
@@ -46,4 +46,4 @@ if __name__ == '__main__':
             # Extend the first dictionary with the second dictionary
             data_dict_1[key_1] += (data_dict_2[key_2])
 
-    utils.dict_to_excel(data_dict_1)
+    utils.dict_to_excel(input_dict = data_dict_1, save_name = 'matching_output_test.xlsx')

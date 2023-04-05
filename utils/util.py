@@ -1,5 +1,5 @@
 import os
-from openpyxl import Workbook
+from openpyxl import Workbook, load_workbook
 import numpy as np
 import pandas as pd
 
@@ -118,7 +118,7 @@ def excel_to_workbook(file_path: str) -> Union[Workbook, None]:
     '''
     try:
         wb = Workbook()
-        wb = wb.load_workbook(file_path)
+        wb = load_workbook(file_path)
         return wb
     except Exception as e:
         print(f"[excel_to_workbook] Error: {e}")
