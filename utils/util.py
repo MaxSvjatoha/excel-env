@@ -186,6 +186,7 @@ def normalize_list(data: Union[List[str], str] = '', keep_originals: bool = Fals
 
     Args:
         data (Union[List, str]): List of strings or a single string
+        keep_originals (bool): If True, return a dictionary with the original values as keys and the normalized values as values
     
     Returns:
         List[str]: List of normalized strings
