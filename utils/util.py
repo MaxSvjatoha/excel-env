@@ -66,6 +66,58 @@ def _generate_excel(cols: int, rows: int, col_names: Union[List, None] = None, s
     except Exception as e:
         print(e)
         return 1
+    
+def _get_input_files(path: Union[List[str], str], settings: Dict) -> List[str]:
+    '''
+    Get all excel file paths in the given path
+
+    Args:
+        path (List[str] or str): Path to the folder(s) to search in
+        settings (dict): Script settings dictionary
+
+    Returns:
+        list: List of excel files
+    '''
+    if isinstance(path, str):
+        path = [path]
+    excel_files = []
+
+    for p in path:
+        for root, dirs, files in os.walk(p):
+            for f in files:
+                # If file is an excel file and is part of a subdirectory, add it to the list
+                if f.endswith('.xlsx') and not root.split(os.sep)[-1] in settings['Input file folder name']:
+                    excel_files.append(os.path.join(root, f))
+
+    return excel_files
+
+# Note: This function is not meant for production use, but this may change in a future update
+def _get_input_folders(path: Union[List[str], str], settings: Dict) -> List[str]:
+    '''
+    Get all folder paths that contain the input excel files
+
+    Args:
+        path (List[str] or str): Path to the folder(s) to search in
+        settings (dict): Script settings dictionary
+
+    Returns:
+        list: List of excel files
+    '''
+    if isinstance(path, str):
+        path = [path]
+    excel_folders = []
+
+    for p in path:
+        for root, dirs, files in os.walk(p):
+            for d in dirs:
+                # If dir contains excel files, add it to the list
+                if len([f for f in os.listdir(os.path.join(root, d)) if f.endswith('.xlsx')]) > 0:
+                    excel_folders.append(os.path.join(root, d))
+
+    return excel_folders
+
+def _write_to_summary(summary_wb: Workbook, wb: Workbook, settings: Dict) -> int:
+    return 0 # TODO
 
 def excel_to_list(path: str) -> List[List[str]]:
     '''
@@ -211,9 +263,9 @@ def normalize_list(data: Union[List[str], str] = '', keep_originals: bool = Fals
     else:
         return out_list
     
-def match_lists(list_1: List, list_2: List) -> Dict:
+def match_lists(list_1: List, list_2: List, filter_doubles: bool = False) -> Dict:
     '''
-    Use diff to match two lists and returns a nested dictionary with the following structure:
+    Use difflib to match two lists and returns a nested dictionary with the following structure:
     {
         'list_1_value': {
         'match': 'best_matching_string_in_list_2_here'
@@ -240,6 +292,7 @@ def match_lists(list_1: List, list_2: List) -> Dict:
     Args:
         list_1 (List): First list of strings
         list_2 (List): Second list of strings
+        filter_doubles (bool): If True, make sure each item in list_2 only has one match in list_1
 
     Returns:
         Dict: Output dictionary with the above structure
@@ -255,6 +308,9 @@ def match_lists(list_1: List, list_2: List) -> Dict:
 
     output_dict = {}
 
+    if filter_doubles:
+        best_match_strings = []
+
     for item in list_1:
         best_match = 0
         best_match_string = ''
@@ -265,8 +321,29 @@ def match_lists(list_1: List, list_2: List) -> Dict:
                 best_match = ratio
                 best_match_string = item_2
 
-        output_dict[item] = {
-            'match': best_match_string,
-            'score': np.round(best_match, 3)
-        }
+        if filter_doubles:
+            if best_match_string in best_match_strings:
+                # Check if the new match is better
+                print(f"[match_lists] Debug: Matched {item} to {best_match_string} with a score of {np.round(best_match, 3)}, but it is already matched to {output_dict[best_match_string]['match']} with a score of {output_dict[best_match_string]['score']}")
+                if best_match > output_dict[best_match_string]['score']:
+                    # Update the output dictionary
+                    print(f'[match_lists] Debug: Updating to {item} with a score of {best_match}')
+                    output_dict[item] = {
+                        'match': best_match_string,
+                        'score': np.round(best_match, 3)
+                    }
+                else:
+                    print(f'[match_lists] Debug: Keeping the previous match with a score of {output_dict[best_match_string]["score"]}')
+            else:
+                best_match_strings.append(best_match_string)
+                output_dict[item] = {
+                'match': best_match_string,
+                'score': np.round(best_match, 3)
+                 }
+        else:
+            output_dict[item] = {
+                'match': best_match_string,
+                'score': np.round(best_match, 3)
+            }
+
     return output_dict
