@@ -116,6 +116,45 @@ def _get_input_folders(path: Union[List[str], str], settings: Dict) -> List[str]
 
     return excel_folders
 
+def _get_scope_data(wb: Workbook, sheet: str) -> Dict[str, list]:
+    '''
+    Get the scope data from the given workbook and sheet
+
+    Args:
+        wb (Workbook): Workbook to get the scope data from
+        sheet (str): Worksheet to get the scope data from
+
+    Returns:
+        dict: TODO
+    '''
+    result_dict = {}
+    sheet = wb[sheet]
+    max_row = sheet.max_row
+    max_col = sheet.max_column
+    
+    for row in range(1, max_row + 1):
+        # Don't load the first column, since previous cell can't load then
+        for col in range(2, max_col + 1):
+            prev_cell = sheet.cell(row=row, column=col-1)
+            cell = sheet.cell(row=row, column=col)
+            next_cell = sheet.cell(row=row, column=col+1)
+
+            # Check if the cell color is FFDDEBF7
+            if 'FFDDEBF7'.lower() in cell.fill.start_color.index.lower():
+                if next_cell.value is not None:
+                    # If it has the same color, then it's the key, else the previous cell is the key
+                    if 'FFDDEBF7'.lower() in next_cell.fill.start_color.index.lower():
+                        key = next_cell.value
+                    else:
+                        key = prev_cell.value
+                # If previous cell is not None, then it's a key, else ignore current cell
+                elif prev_cell.value is not None:
+                    key = prev_cell.value
+                else:
+                    continue
+                result_dict[key] = cell.value
+    return result_dict
+
 def _write_to_summary(summary_wb: Workbook, wb: Workbook, settings: Dict) -> int:
     return 0 # TODO
 

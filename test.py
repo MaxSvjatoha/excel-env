@@ -51,8 +51,6 @@ for folder_path in input_folder_paths:
 
 print(input_folder_excel_files, input_folder_excel_keys)
 
-sys.exit()
-
 # Get a list of all sheets in the template file
 template_wb = openpyxl.load_workbook(template_folder_path)
 template_sheets = template_wb.sheetnames
