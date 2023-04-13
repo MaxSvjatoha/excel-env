@@ -56,16 +56,17 @@ if __name__ == '__main__':
         # load sheet in summary file which matches matches[key]['match']
         # print(f"Loading sheet {summary_wb[matches[key]['match']]} from summary file")
         summary_sheet = summary_wb[matches[key]['match']]
+        max_row = summary_sheet.max_row
+        max_col = summary_sheet.max_column
 
         match_count = 0 # Keep track of how many matches are found for a given subitem
         match_dict = {} # Keep track of which row and column a given subitem is found in
 
-        # write data to sheet
+        # write data to sheet. format is:
+        # input_data_dict[input_folder_name][summary_sheet_name][cell_with_name_associated_with_data]
         for item in input_data_dict[key].keys():
             for subitem in input_data_dict[key][item].keys():
                 # Match subitem to row and column in summary sheet
-                max_row = summary_sheet.max_row
-                max_col = summary_sheet.max_column
                 for row in range(1, max_row + 1):
                     for col in range(1, max_col + 1):
                         if summary_sheet.cell(row = row, column = col).value == subitem:
