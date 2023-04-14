@@ -152,6 +152,10 @@ def _get_scope_data(wb: Workbook, sheet: str) -> Dict[str, list]:
                     key = prev_cell.value
                 else:
                     continue
+                # Extra step. Possibly temporary until better matching technique are explored:
+                # If key ends with " ", remove it
+                if key.endswith(' '):
+                    key = key[:-1]
                 result_dict[key] = cell.value
     return result_dict
 

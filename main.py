@@ -108,6 +108,7 @@ if __name__ == '__main__':
                         summary_mismatches.cell(row = mismatch_count+1, column = 3).value = subitem
                         summary_mismatches.cell(row = mismatch_count+1, column = 4).value = "No match found"
                     else:
+                        print(f"WARNING: {subitem} already in mismatch_dict")
                         pass # TODO # Handler? (this bit was never reached in testing)
                     continue
                 else:
@@ -125,12 +126,13 @@ if __name__ == '__main__':
                 match_count = 0
                 match_dict = {}
 
-    summary_wb.save(os.path.join(settings['Output file folder path'], settings["Output file name"]))
+    #summary_wb.save(os.path.join(settings['Output file folder path'], settings["Output file name"]))
     summary_wb.close()
 
     print("Mismatched subitems:")
     for key in mismatch_dict.keys():
         print(f"Key: {key}, value: {mismatch_dict[key]}")
+    print(f"Total number of mismatches: {mismatch_count}")
 
     print("Script execution finished successfully")
     sys.exit(0)
