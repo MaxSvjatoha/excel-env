@@ -3,6 +3,7 @@ import sys
 
 import json
 import numpy as np
+import openpyxl
 
 import utils.util as utils
 
@@ -27,6 +28,18 @@ if __name__ == '__main__':
     # Get the summary file and its sheet names
     summary_wb = utils.excel_to_workbook(summary_file)
     summary_sheets = summary_wb.sheetnames
+    if "Missmatchningar" not in summary_sheets:
+        summary_mismatches = summary_wb.create_sheet("Missmatchningar")
+    else:
+        pass # TODO - decide whether new sheet should be created or if starting row should be set to max_row + 1
+
+    mismatch_count = 0 # Keep track of how many mismatches are found in total
+    mismatch_dict = {} # Keep track of which subitems are not found in the summary sheet
+
+    summary_mismatches.cell(row = 1, column = 1).value = "Input folder name"
+    summary_mismatches.cell(row = 1, column = 2).value = "Scope"
+    summary_mismatches.cell(row = 1, column = 3).value = "Entry name"
+    summary_mismatches.cell(row = 1, column = 4).value = "Value"
 
     # Match input file names to summary file sheet names
     matches = utils.match_lists(input_folder_names, summary_sheets, filter_doubles = True)
@@ -61,9 +74,9 @@ if __name__ == '__main__':
 
         match_count = 0 # Keep track of how many matches are found for a given subitem
         match_dict = {} # Keep track of which row and column a given subitem is found in
-
+        
         # write data to sheet. format is:
-        # input_data_dict[input_folder_name][summary_sheet_name][cell_with_name_associated_with_data]
+        # input_data_dict[input_folder_name][scope][summary_sheet_name]
         for item in input_data_dict[key].keys():
             for subitem in input_data_dict[key][item].keys():
                 # Match subitem to row and column in summary sheet
@@ -81,7 +94,22 @@ if __name__ == '__main__':
                     else: 
                         pass # TODO # Handler (non-urgent)
                 elif match_count == 0:
-                    continue # go back to top of loop
+                    print(f"WARNING: No match found for {subitem} in sheet {matches[key]['match']}")
+                    mismatch_count += 1
+                    if key not in mismatch_dict.keys():
+                        mismatch_dict[key] = {}
+                    if item not in mismatch_dict[key].keys():
+                        mismatch_dict[key][item] = {}
+                    if subitem not in mismatch_dict[key][item].keys():
+                        mismatch_dict[key][item][subitem] = mismatch_count
+                        # write to mismatch sheet
+                        summary_mismatches.cell(row = mismatch_count+1, column = 1).value = key
+                        summary_mismatches.cell(row = mismatch_count+1, column = 2).value = item
+                        summary_mismatches.cell(row = mismatch_count+1, column = 3).value = subitem
+                        summary_mismatches.cell(row = mismatch_count+1, column = 4).value = "No match found"
+                    else:
+                        pass # TODO # Handler? (this bit was never reached in testing)
+                    continue
                 else:
                     write_key = list(match_dict.keys())[0] # use match_dict entry with the only key
                 
@@ -99,6 +127,10 @@ if __name__ == '__main__':
 
     summary_wb.save(os.path.join(settings['Output file folder path'], settings["Output file name"]))
     summary_wb.close()
+
+    print("Mismatched subitems:")
+    for key in mismatch_dict.keys():
+        print(f"Key: {key}, value: {mismatch_dict[key]}")
 
     print("Script execution finished successfully")
     sys.exit(0)
