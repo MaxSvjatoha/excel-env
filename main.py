@@ -5,6 +5,8 @@ import json
 import numpy as np
 import openpyxl
 
+import itertools
+
 import utils.util as utils
 
 # Setup: Import settings from settings.json and initialize required variables
@@ -33,6 +35,7 @@ if __name__ == '__main__':
     else:
         pass # TODO - decide whether new sheet should be created or if starting row should be set to max_row + 1
 
+    mismatch = False # Track match state
     mismatch_count = 0 # Keep track of how many mismatches are found in total
     mismatch_dict = {} # Keep track of which subitems are not found in the summary sheet
 
@@ -75,26 +78,59 @@ if __name__ == '__main__':
         match_count = 0 # Keep track of how many matches are found for a given subitem
         match_dict = {} # Keep track of which row and column a given subitem is found in
         
+        coords_dict = {} # EXPERIMENTAL: keep track of the scanned cell value and its coordinates here
+
         # write data to sheet. format is:
         # input_data_dict[input_folder_name][scope][summary_sheet_name]
         for item in input_data_dict[key].keys():
             for subitem in input_data_dict[key][item].keys():
-                # Match subitem to row and column in summary sheet
-                for row in range(1, max_row + 1):
-                    for col in range(1, max_col + 1):
-                        if summary_sheet.cell(row = row, column = col).value == subitem:
-                            # print(f"Found match for {subitem} at row {row} and column {col}")
-                            match_count += 1
-                            match_dict[match_count] = {"row": row, "col": col}
+                for row, col in itertools.product(range(1, max_row + 1), range(1, max_col + 1)):
+
+                    # Load cell value
+                    cell_value = summary_sheet.cell(row = row, column = col).value
+                    
+                    # Pre-process cell value
+                    if type(cell_value) == str:
+                        cell_value = utils.preprocess_cell(cell_value)
+
+                    # Try to match subitem to cell_value
+                    if subitem == cell_value:
+                        print(f"Found match for {subitem} at row {row} and column {col}")
+                        match_count += 1
+                        match_dict[match_count] = {"row": row, "col": col}
+                    elif str(subitem) in str(cell_value):
+                        print(f"{subitem} part of {cell_value} at row {row} and column {col}")
+                        match_count += 1
+                        match_dict[match_count] = {"row": row, "col": col}
+                    else:
+                        #print(f"No match for {subitem} at row {row} and column {col}")
+                        pass
+
+                # Handle various amounts of matches
                 if match_count > 1:
                     if 'Scope 1'.lower() in item.lower():
                         write_key = min(match_dict.keys()) # use match_dict entry with the lowest key
                     elif 'Scope 3'.lower() in item.lower():
                         write_key = max(match_dict.keys()) # use match_dict entry with the highest key
-                    else: 
+                    else:
+                        print(f"WARNING: Multiple matches found for {subitem} in sheet {matches[key]['match']}") 
                         pass # TODO # Handler (non-urgent)
                 elif match_count == 0:
-                    print(f"WARNING: No match found for {subitem} in sheet {matches[key]['match']}")
+                    
+                    # TODO - handle special cases before registering mismatches
+
+                    if all(x in subitem.lower() for x in ['källa', 'el']):
+                        print(f"found 'källa' and 'el' in subitem: {subitem}")
+                        pass # do stuff
+                    elif all(x in subitem.lower() for x in ['kwh', 'värme']):
+                        print(f"found 'kwh' and 'värme' in subitem: {subitem}")
+                        pass # do stuff
+                    elif all(x in subitem.lower() for x in ['kwh', 'kyla']):
+                        print(f"found 'kwh' and 'kyla' in subitem: {subitem}")
+                        pass # do stuff
+
+                    # else, run this code:
+                    #print(f"WARNING: No match found for {subitem} in sheet {matches[key]['match']}")
                     mismatch_count += 1
                     if key not in mismatch_dict.keys():
                         mismatch_dict[key] = {}

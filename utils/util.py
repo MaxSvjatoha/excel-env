@@ -2,6 +2,7 @@ import os
 from openpyxl import Workbook, load_workbook
 import numpy as np
 import pandas as pd
+import re
 
 from typing import List, Dict, Union, Any
 
@@ -159,8 +160,18 @@ def _get_scope_data(wb: Workbook, sheet: str) -> Dict[str, list]:
                 result_dict[key] = cell.value
     return result_dict
 
-def _write_to_summary(summary_wb: Workbook, wb: Workbook, settings: Dict) -> int:
-    return 0 # TODO
+# Will contain several steps, but for now just removes trailing spaces
+def preprocess_cell(cell: str) -> str:
+    '''
+    Preprocess the given cell
+
+    Args:
+        cell (str): Cell to preprocess
+
+    Returns:
+        str: Preprocessed cell
+    '''
+    return cell.strip()
 
 def excel_to_list(path: str) -> List[List[str]]:
     '''
