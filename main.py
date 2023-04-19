@@ -18,6 +18,11 @@ with open("settings.json", "r") as f:
 settings["Input file folder path"] = os.path.join(settings["Parent directory"], settings["Input file folder name"])
 settings["Output file folder path"] = os.path.join(settings["Parent directory"], settings["Output file folder name"])
 
+# Setup: Import scope 2 special cases dictionary
+with open("scope_2_dict.json", "r") as f:
+    scope_2_dict = json.load(f)
+    assert(type(scope_2_dict) == dict)
+
 # Setup: Load relevant folder and file paths and extract their names
 input_folder_paths = utils._get_input_folders(path = settings["Input file folder path"], settings = settings)
 input_file_paths = utils._get_input_files(path = settings["Input file folder path"], settings = settings)
@@ -77,6 +82,8 @@ if __name__ == '__main__':
 
         match_count = 0 # Keep track of how many matches are found for a given subitem
         match_dict = {} # Keep track of which row and column a given subitem is found in
+        write_key = None # Keep track of which match_dict entry to use when writing data
+        write_data = None # Keep track of which data to write to the summary sheet
         
         coords_dict = {} # EXPERIMENTAL: keep track of the scanned cell value and its coordinates here
 
@@ -117,36 +124,62 @@ if __name__ == '__main__':
                         pass # TODO # Handler (non-urgent)
                 elif match_count == 0:
                     
-                    # TODO - handle special cases before registering mismatches
+                    # Handle special cases before registering mismatches
+                    # NOTE - this could be a preprocessing step before the row/col scan instead
+                    # NOTE 2 - this should be refactored and preferably done in a separate function
 
-                    if all(x in subitem.lower() for x in ['källa', 'el']):
-                        print(f"found 'källa' and 'el' in subitem: {subitem}")
-                        pass # do stuff
+                    # Electricity 
+                    if all(x in subitem.lower() for x in ['källa', 'inköpt el']):
+                        print(f"found 'källa' and 'inköpt el' in subitem: {subitem}, using special case 1")
+                        special_case = scope_2_dict["1"]
+                        match_dict[special_case["name"]] = {"row": special_case["row"], "col": special_case["col"]}
+                        write_key = special_case["name"]
+                    elif all(x in subitem.lower() for x in ['kwh', 'elanvändning']):
+                        print(f"found 'kwh' and 'elanvändning' in subitem: {subitem}, using special case 2")
+                        special_case = scope_2_dict["2"]
+                        match_dict[special_case["name"]] = {"row": special_case["row"], "col": special_case["col"]}
+                        write_key = special_case["name"]
+                    # Heat
+                    elif all(x in subitem.lower() for x in ['källa', 'värme']):
+                        print(f"found 'källa' and 'värme' in subitem: {subitem}, using special case 3")
+                        special_case = scope_2_dict["3"]
+                        match_dict[special_case["name"]] = {"row": special_case["row"], "col": special_case["col"]}
+                        write_key = special_case["name"]
                     elif all(x in subitem.lower() for x in ['kwh', 'värme']):
-                        print(f"found 'kwh' and 'värme' in subitem: {subitem}")
-                        pass # do stuff
+                        print(f"found 'kwh' and 'värme' in subitem: {subitem}, using special case 4")
+                        special_case = scope_2_dict["4"]
+                        match_dict[special_case["name"]] = {"row": special_case["row"], "col": special_case["col"]}
+                        write_key = special_case["name"]
+                    # Cooling
+                    elif all(x in subitem.lower() for x in ['källa', 'kyla']):
+                        print(f"found 'källa' and 'kyla' in subitem: {subitem}, using special case 5")
+                        special_case = scope_2_dict["5"]
+                        match_dict[special_case["name"]] = {"row": special_case["row"], "col": special_case["col"]}
+                        write_key = special_case["name"]
                     elif all(x in subitem.lower() for x in ['kwh', 'kyla']):
-                        print(f"found 'kwh' and 'kyla' in subitem: {subitem}")
-                        pass # do stuff
-
-                    # else, run this code:
-                    #print(f"WARNING: No match found for {subitem} in sheet {matches[key]['match']}")
-                    mismatch_count += 1
-                    if key not in mismatch_dict.keys():
-                        mismatch_dict[key] = {}
-                    if item not in mismatch_dict[key].keys():
-                        mismatch_dict[key][item] = {}
-                    if subitem not in mismatch_dict[key][item].keys():
-                        mismatch_dict[key][item][subitem] = mismatch_count
-                        # write to mismatch sheet
-                        summary_mismatches.cell(row = mismatch_count+1, column = 1).value = key
-                        summary_mismatches.cell(row = mismatch_count+1, column = 2).value = item
-                        summary_mismatches.cell(row = mismatch_count+1, column = 3).value = subitem
-                        summary_mismatches.cell(row = mismatch_count+1, column = 4).value = "No match found"
+                        print(f"found 'kwh' and 'kyla' in subitem: {subitem}, using special case 6")
+                        special_case = scope_2_dict["6"]
+                        match_dict[special_case["name"]] = {"row": special_case["row"], "col": special_case["col"]}
+                        write_key = special_case["name"]
                     else:
-                        print(f"WARNING: {subitem} already in mismatch_dict")
-                        pass # TODO # Handler? (this bit was never reached in testing)
-                    continue
+                        # Register mismatch
+                        #print(f"WARNING: No match found for {subitem} in sheet {matches[key]['match']}")
+                        mismatch_count += 1
+                        if key not in mismatch_dict.keys():
+                            mismatch_dict[key] = {}
+                        if item not in mismatch_dict[key].keys():
+                            mismatch_dict[key][item] = {}
+                        if subitem not in mismatch_dict[key][item].keys():
+                            mismatch_dict[key][item][subitem] = mismatch_count
+                            # write to mismatch sheet
+                            summary_mismatches.cell(row = mismatch_count+1, column = 1).value = key
+                            summary_mismatches.cell(row = mismatch_count+1, column = 2).value = item
+                            summary_mismatches.cell(row = mismatch_count+1, column = 3).value = subitem
+                            summary_mismatches.cell(row = mismatch_count+1, column = 4).value = "No match found"
+                        else:
+                            print(f"WARNING: {subitem} already in mismatch_dict")
+                            pass # TODO # Handler? (this bit was never reached in testing)
+                        continue
                 else:
                     write_key = list(match_dict.keys())[0] # use match_dict entry with the only key
                 
@@ -154,15 +187,17 @@ if __name__ == '__main__':
                 if input_data_dict[key][item][subitem] is not None:
                     write_data = input_data_dict[key][item][subitem] # Write data to summary sheet
                 else:
-                    write_data = np.random.randint(0, 100)
+                    write_data = "GENERATED: " + str(np.random.randint(0, 100))
                 
-                summary_sheet.cell(row = match_dict[write_key]["row"], column = match_dict[write_key]["col"] + 1).value = write_data
+                # Write data to summary sheet if write_key is not None
+                if write_key is not None:
+                    summary_sheet.cell(row = match_dict[write_key]["row"], column = match_dict[write_key]["col"] + 1).value = write_data
                 
                 # Reset match_count and match_dict
                 match_count = 0
                 match_dict = {}
 
-    #summary_wb.save(os.path.join(settings['Output file folder path'], settings["Output file name"]))
+    summary_wb.save(os.path.join(settings['Output file folder path'], settings["Output file name"]))
     summary_wb.close()
 
     print("Mismatched subitems:")

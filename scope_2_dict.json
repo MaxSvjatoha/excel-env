@@ -1,0 +1,32 @@
+{
+    "1": {
+        "name": "Verksamhetsel",
+        "row": 7,
+        "col": 2
+    },
+    "2": {
+        "name": "Verksamhetsel",
+        "row": 7,
+        "col": 3
+    },
+    "3": {
+        "name": "Fjärrvärme",
+        "row": 9,
+        "col": 2
+    },
+    "4": {
+        "name": "Fjärrvärme",
+        "row": 9,
+        "col": 3
+    },
+    "5": {
+        "name": "Fjärrkyla",
+        "row": 10,
+        "col": 2
+    },
+    "6": {
+        "name": "Fjärrkyla",
+        "row": 10,
+        "col": 3
+    }
+}
