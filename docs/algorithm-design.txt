@@ -1,3 +1,5 @@
+Early attempts at creating algorithms to perform automated matching
+
 ----1----
 
 1. Create a dictionary of variable names that are commonly used across all the data sources. 

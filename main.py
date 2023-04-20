@@ -53,6 +53,7 @@ if __name__ == '__main__':
     matches = utils.match_lists(input_folder_names, summary_sheets, filter_doubles = True)
     # print(f"Matches: {matches}")
 
+    print("Processing input files...")
     # Create a dictionary of input data and initialize subdicts for each input file
     input_data_dict = {}
     for file in input_file_paths:
@@ -60,13 +61,15 @@ if __name__ == '__main__':
         # Check that key is in matches dict
         if input_data_key in matches.keys():
             input_data_dict[input_data_key] = {} # Initialize subdict to store sheet data
+        else:
+            continue # Immediately go to next file if key is not in matches dict
 
-    print("Processing input files...")
-    for key in input_data_dict.keys():
         wb = utils.excel_to_workbook(file)
+        
         scope_sheets = [sheet for sheet in wb.sheetnames if 'scope' in sheet.lower()]
         for sheet in scope_sheets:
-            input_data_dict[key][sheet] = utils._get_scope_data(wb, sheet)
+            input_data_dict[input_data_key][sheet] = utils._get_scope_data(wb, sheet)
+            
         wb.close()
 
     print("Writing data to summary file:")
@@ -84,7 +87,8 @@ if __name__ == '__main__':
         match_dict = {} # Keep track of which row and column a given subitem is found in
         write_key = None # Keep track of which match_dict entry to use when writing data
         write_data = None # Keep track of which data to write to the summary sheet
-        
+        special_case = None # Reset special case flag
+
         coords_dict = {} # EXPERIMENTAL: keep track of the scanned cell value and its coordinates here
 
         # write data to sheet. format is:
@@ -184,7 +188,52 @@ if __name__ == '__main__':
                     write_key = list(match_dict.keys())[0] # use match_dict entry with the only key
                 
                 # Extract data from input_data_dict and write to summary sheet. If none, generate random data
-                if input_data_dict[key][item][subitem] is not None:
+                if special_case is not None:
+
+                    # TODO SUMMARY SHEET MUST BE INPUT SHEET
+
+                    col_modifier = 1 # Used for iterating through the columns to the right of the subitem
+                    input_data_dict[key][sheet]
+
+                    # Open wb 
+
+                    # Find subitem in input_data_dict and get its row and column values
+                    for row, col in itertools.product(range(1, max_row + 1), range(1, max_col + 1)):
+                        if summary_sheet.cell(row = row, column = col).value == subitem:
+                            subitem_row = row
+                            subitem_col = col
+                            break
+                    
+                    # While next color is 'FFDDEBF7',
+                    # Iterate through the columns to the right of the subitem and write data to summary sheet
+                    while summary_sheet.cell(row = subitem_row, column = subitem_col + col_modifier).fill.start_color.index == 'FFDDEBF7':
+                        
+                        cell = summary_sheet.cell(row = subitem_row, column = subitem_col + col_modifier)
+                        
+                        if write_data is None:
+                            if type(cell.value) is str:
+                                write_data = ""
+                            elif type(cell.value) in (int, float):
+                                write_data = 0
+                        
+                        # check if cell is a string or a number
+                        if isinstance(cell.value, str):
+                            write_data =+ cell.value
+                            # if next cell is also has correct color, add a comma
+                            if summary_sheet.cell(row = subitem_row, column = subitem_col + col_modifier + 1).fill.start_color.index == 'FFDDEBF7':
+                                write_data =+ ", "
+                        elif isinstance(cell.value, (int, float)):
+                            write_data =+ cell.value
+                        else:
+                            #print(f"WARNING: {cell.value} is not a string or a number")
+                            pass
+                        
+                        col_modifier += 1
+
+                        if col_modifier > 100:
+                            break
+
+                elif input_data_dict[key][item][subitem] is not None:
                     write_data = input_data_dict[key][item][subitem] # Write data to summary sheet
                 else:
                     write_data = "GENERATED: " + str(np.random.randint(0, 100))
