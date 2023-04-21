@@ -56,15 +56,15 @@ if __name__ == '__main__':
     print("Processing input files...")
     # Create a dictionary of input data and initialize subdicts for each input file
     input_data_dict = {}
-    for file in input_file_paths:
-        input_data_key = file.split("\\")[-2] # Use folder name as key
+    for file_path in input_file_paths:
+        input_data_key = file_path.split("\\")[-2] # Use folder name as key
         # Check that key is in matches dict
         if input_data_key in matches.keys():
             input_data_dict[input_data_key] = {} # Initialize subdict to store sheet data
         else:
             continue # Immediately go to next file if key is not in matches dict
 
-        wb = utils.excel_to_workbook(file)
+        wb = utils.excel_to_workbook(file_path)
         
         scope_sheets = [sheet for sheet in wb.sheetnames if 'scope' in sheet.lower()]
         for sheet in scope_sheets:
@@ -192,23 +192,28 @@ if __name__ == '__main__':
 
                     # TODO SUMMARY SHEET MUST BE INPUT SHEET
 
-                    col_modifier = 1 # Used for iterating through the columns to the right of the subitem
-                    input_data_dict[key][sheet]
+                    # Find correct input sheet
+                    for file_path in input_file_paths:
+                        if file_path.split("\\")[-2] == key:
+                            wb = utils.excel_to_workbook(file_path)
+                            input_sheet = [sheet for sheet in wb.sheetnames if 'scope 1' in sheet.lower()][0]
+                            input_data = wb[input_sheet]
+                            max_input_row = input_data.max_row
+                            max_input_col = input_data.max_column
+                            for row, col in itertools.product(range(1, max_input_row + 1), range(1, max_input_col + 1)):
+                                if input_data.cell(row = row, column = col).value == subitem:
+                                    subitem_row = row
+                                    subitem_col = col
+                                    break
+                            print(f"found subitem {subitem} in input sheet {input_sheet} at row {subitem_row} and column {subitem_col}")
 
-                    # Open wb 
-
-                    # Find subitem in input_data_dict and get its row and column values
-                    for row, col in itertools.product(range(1, max_row + 1), range(1, max_col + 1)):
-                        if summary_sheet.cell(row = row, column = col).value == subitem:
-                            subitem_row = row
-                            subitem_col = col
-                            break
+                    col_modifier = 1 # Used for iterating through the columns to the r ight of the subitem
                     
                     # While next color is 'FFDDEBF7',
                     # Iterate through the columns to the right of the subitem and write data to summary sheet
-                    while summary_sheet.cell(row = subitem_row, column = subitem_col + col_modifier).fill.start_color.index == 'FFDDEBF7':
+                    while input_data.cell(row = subitem_row, column = subitem_col + col_modifier).fill.start_color.index == 'FFDDEBF7':
                         
-                        cell = summary_sheet.cell(row = subitem_row, column = subitem_col + col_modifier)
+                        cell = input_data.cell(row = subitem_row, column = subitem_col + col_modifier)
                         
                         if write_data is None:
                             if type(cell.value) is str:
@@ -220,7 +225,7 @@ if __name__ == '__main__':
                         if isinstance(cell.value, str):
                             write_data =+ cell.value
                             # if next cell is also has correct color, add a comma
-                            if summary_sheet.cell(row = subitem_row, column = subitem_col + col_modifier + 1).fill.start_color.index == 'FFDDEBF7':
+                            if input_data.cell(row = subitem_row, column = subitem_col + col_modifier + 1).fill.start_color.index == 'FFDDEBF7':
                                 write_data =+ ", "
                         elif isinstance(cell.value, (int, float)):
                             write_data =+ cell.value
@@ -231,7 +236,11 @@ if __name__ == '__main__':
                         col_modifier += 1
 
                         if col_modifier > 100:
+                            print(f"WARNING: col_modifier > 100. This shouldn't happen. Breaking loop")
                             break
+                    
+                    print(f"Special case write_data: {write_data}")
+                    sys.exit()
 
                 elif input_data_dict[key][item][subitem] is not None:
                     write_data = input_data_dict[key][item][subitem] # Write data to summary sheet
