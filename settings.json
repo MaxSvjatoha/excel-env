@@ -2,5 +2,6 @@
     "Summary file name": "Aktivitetsdata Klimatbokslut.xlsx", 
     "Input file folder name": "Arbetsmapp datainsamling",
     "Output file folder name": "Arbetsmapp datainsamling",
-    "Output file name": "NY Aktivitetsdata Klimatbokslut.xlsx"
+    "Output file name": "NY Aktivitetsdata Klimatbokslut.xlsx",
+    "Generate missing write data": true
 }

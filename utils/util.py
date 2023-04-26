@@ -1,76 +1,48 @@
 import os
-from openpyxl import Workbook, load_workbook
+import sys
+
 import numpy as np
-import pandas as pd
-import re
+
+from openpyxl import Workbook, load_workbook
+import json
+
+import itertools
 
 from typing import List, Dict, Union, Any
 
 import difflib
 
-# Note: Internal testing functions are prefixed with an underscore (_) and are not meant for production use
 
-def _generate_excel(cols: int, rows: int, col_names: Union[List, None] = None, save_name: str = 'test.xlsx') -> int:
+def load_json(json_path: str) -> Dict[str, Any]:
     '''
-    Generate an excel file with 'cols' many columns and 'rows' many rows. 
-    Populate it with column headers and random numbers.
+    Summary:
+        Load a JSON file and return its contents as a dictionary.
 
     Args:
-        cols (int): Number of columns
-        rows (int): Number of rows
+        json_path (str): The path to the JSON file.
+
     Returns:
-        int: 0 if successful, 1 if not
+        output_json (Dict[str, Any]): A dictionary containing the JSON file contents.
+
+    Raises:
+        AssertionError: If the JSON file is not a dictionary.
+        IOError: If the JSON file cannot be found or read.
+        JSONDecodeError: If the JSON file is not valid JSON.
     '''
-
-    # Make sure the number of columns and rows are valid
-    if cols < 1:
-        print('[_generate_excel] Error: Number of columns must be greater than 0')
-        return 1
-    if rows < 1:
-        print('[_generate_excel] Error: Number of rows must be greater than 0')
-        return 1
+    # Load json file:
+    with open(json_path, "r") as f:
+        output_json = json.load(f)
+        assert(type(output_json) == dict)
     
-    # If column names are provided, make sure they match the number of columns
-    if col_names is not None and len(col_names) != cols:
-        print('[_generate_excel] Error: Number of column names does not match number of columns')
-        return 1
-        
-    # Make sure the save name is valid
-    if save_name == '':
-        print('[_generate_excel] Error: Save name cannot be empty')
-        return 1
-    if not save_name.endswith('.xlsx'):
-        save_name += '.xlsx'
-        print(f'[_generate_excel] Warning: Save name does not end with .xlsx. Automatically appending .xlsx to save name')
+    return output_json
 
-    # Generate the excel file
-    try:
-        wb = Workbook()
-        ws = wb.active
 
-        # Generate column headers
-        if col_names is None:
-            for i in range(1, cols + 1):
-                ws.cell(row=1, column=i).value = 'Column {}'.format(i)
-        else:
-            for i in range(1, cols + 1):
-                ws.cell(row=1, column=i).value = col_names[i - 1]
-
-        # Generate random numbers
-        for i in range(2, rows + 2):
-            for j in range(1, cols + 1):
-                ws.cell(row=i, column=j).value = np.random.randint(1, 100)
-
-        # Save the excel file
-        wb.save(os.path.join(os.getcwd(), save_name))
-        return 0
-    except Exception as e:
-        print(e)
-        return 1
-    
-def _get_input_files(path: Union[List[str], str], settings: Dict) -> List[str]:
+# NOTE: The double underscore (__) prefix indicates that this function is not meant 
+# for production use, but this may change in a future update
+def __get_input_files(path: Union[List[str], str], settings: Dict) -> List[str]:
     '''
-    Get all excel file paths in the given path
+    Summary:
+        Get all excel file paths in the given path
 
     Args:
         path (List[str] or str): Path to the folder(s) to search in
@@ -92,10 +64,13 @@ def _get_input_files(path: Union[List[str], str], settings: Dict) -> List[str]:
 
     return excel_files
 
-# Note: This function is not meant for production use, but this may change in a future update
-def _get_input_folders(path: Union[List[str], str], settings: Dict) -> List[str]:
+
+# NOTE: The double underscore (__) prefix indicates that this function is not meant 
+# for production use, but this may change in a future update
+def __get_input_folders(path: Union[List[str], str], settings: Dict) -> List[str]:
     '''
-    Get all folder paths that contain the input excel files
+    Summary:
+        Get all folder paths that contain the input excel files
 
     Args:
         path (List[str] or str): Path to the folder(s) to search in
@@ -117,104 +92,11 @@ def _get_input_folders(path: Union[List[str], str], settings: Dict) -> List[str]
 
     return excel_folders
 
-def _get_scope_data(wb: Workbook, sheet: str) -> Dict[str, list]:
-    '''
-    Get the scope data from the given workbook and sheet
-
-    Args:
-        wb (Workbook): Workbook to get the scope data from
-        sheet (str): Worksheet to get the scope data from
-
-    Returns:
-        dict: TODO
-    '''
-    result_dict = {}
-    sheet = wb[sheet]
-    max_row = sheet.max_row
-    max_col = sheet.max_column
-    
-    for row in range(1, max_row + 1):
-        # Don't load the first column, since previous cell can't load then
-        for col in range(2, max_col + 1):
-            prev_cell = sheet.cell(row=row, column=col-1)
-            cell = sheet.cell(row=row, column=col)
-            next_cell = sheet.cell(row=row, column=col+1)
-
-            # Check if the cell color is FFDDEBF7
-            if 'FFDDEBF7'.lower() in cell.fill.start_color.index.lower():
-                if next_cell.value is not None:
-                    # If it has the same color, then it's the key, else the previous cell is the key
-                    if 'FFDDEBF7'.lower() in next_cell.fill.start_color.index.lower():
-                        key = next_cell.value
-                    else:
-                        key = prev_cell.value
-                # If previous cell is not None, then it's a key, else ignore current cell
-                elif prev_cell.value is not None:
-                    key = prev_cell.value
-                else:
-                    continue
-                # Extra step. Possibly temporary until better matching technique are explored:
-                # If key ends with " ", remove it
-                if key.endswith(' '):
-                    key = key[:-1]
-                result_dict[key] = cell.value
-    return result_dict
-
-# Will contain several steps, but for now just removes trailing spaces
-def preprocess_cell(cell: str) -> str:
-    '''
-    Preprocess the given cell
-
-    Args:
-        cell (str): Cell to preprocess
-
-    Returns:
-        str: Preprocessed cell
-    '''
-    return cell.strip()
-
-def excel_to_list(path: str) -> List[List[str]]:
-    '''
-    Read an excel file and return a list of lists of strings
-
-    Args:
-        path (str): Path to the excel file
-    Returns:
-        List[List[str]]: List of lists of strings
-    '''
-    try:
-        df = pd.read_excel(path)
-    except Exception as e:
-        print(f"[excel_to_list] Error: {e}")
-        return []
-    return df.values.tolist()
-
-def excel_to_dict(file_path: str, sheet_name: str) -> Dict[str, list]:
-    '''
-    Read a single sheet in an Excel file and return a dictionary 
-    with column headers as keys and the rest of the column as the values
-
-    Args:
-        file_path (str): Path to the Excel file
-        sheet_name (str): Name of the sheet to read from
-
-    Returns:
-        dict: Dictionary with column headers as keys and the rest of the column
-        as a list of values
-    '''
-    try:
-        df = pd.read_excel(file_path, sheet_name=sheet_name)
-        result_dict = {}
-        for column in df:
-            result_dict[column] = df[column].tolist()
-    except Exception as e:
-        print(f"[excel_to_dict] Error: {e}")
-        return {}
-    return result_dict
 
 def excel_to_workbook(file_path: str) -> Union[Workbook, None]:
     '''
-    Read an Excel file and return an openpyxl workbook
+    Summary:
+        Read an Excel file and return an openpyxl workbook
 
     Args:
         file_path (str): Path to the Excel file
@@ -230,93 +112,22 @@ def excel_to_workbook(file_path: str) -> Union[Workbook, None]:
         print(f"[excel_to_workbook] Error: {e}")
         return None
 
-def dict_to_excel(input_dict: Dict, save_name: str = 'output.xlsx') -> int:
+
+# Will contain several steps, but for now just removes trailing spaces
+def preprocess_cell(cell: str) -> str:
     '''
-    Convert a dictionary to an excel file and save it to the current working directory
+    Summary:
+        Preprocess the given Excel cell using a few hardcoded rules
 
     Args:
-        input_dict (dict): Dictionary to convert to excel file
-        save_name (str): Name of the excel file to save
+        cell (str): Cell to preprocess
 
     Returns:
-        int: 0 if successful, 1 if not
+        str: Preprocessed cell
     '''
-    # Make sure the save name is valid
-    if save_name == '':
-        print('[dict_to_excel] Error: Save name cannot be empty')
-        return 1
-    if save_name == 'output.xlsx':
-        print('[dict_to_excel] Warning: Save name is the default "output.xlsx". Consider changing it.')
-    if not save_name.endswith('.xlsx'):
-        save_name += '.xlsx'
-        print(f'[dict_to_excel] Warning: Save name does not end with .xlsx. Automatically appending .xlsx to save name')
+    return cell.strip()
 
-    # Convert the dictionary to a pandas dataframe
-    df = pd.DataFrame(input_dict)
 
-    # Save the dataframe to an excel file
-    try:
-        df.to_excel(os.path.join(os.getcwd(), save_name), index=False)
-        return 0
-    except Exception as e:
-        print(e)
-        return 1
-    
-def workbook_to_excel(input_workbook: Workbook, save_name: str = 'output.xlsx') -> int:
-    '''
-    Convert an openpyxl workbook to an excel file and save it to the current working directory
-    '''
-    
-    # Make sure the save name is valid
-    if save_name == '':
-        print('[openpyxl_to_excel] Error: Save name cannot be empty')
-        return 1
-    if save_name == 'output.xlsx':
-        print('[openpyxl_to_excel] Warning: Save name is the default "output.xlsx". Consider changing it.')
-    if not save_name.endswith('.xlsx'):
-        save_name += '.xlsx'
-        print(f'[openpyxl_to_excel] Warning: Save name does not end with .xlsx. Automatically appending .xlsx to save name')
-    
-    # Save the workbook to an excel file
-    try:
-        input_workbook.save(os.path.join(os.getcwd(), save_name))
-        return 0
-    except Exception as e:
-        print(e)
-        return 1
-
-def normalize_list(data: Union[List[str], str] = '', keep_originals: bool = False) -> Any:
-    '''
-    Use a lambda function to normalize the list values by removing all non-alphanumeric characters and converting to lowercase
-    Source: https://stackoverflow.com/questions/1276764/stripping-everything-but-alphanumeric-chars-from-a-string-in-python/1276779#1276779
-
-    Args:
-        data (Union[List, str]): List of strings or a single string
-        keep_originals (bool): If True, return a dictionary with the original values as keys and the normalized values as values
-    
-    Returns:
-        List[str]: List of normalized strings
-    '''
-
-    # If the data is a string, convert it to a list
-    if isinstance(data, str):
-        # Check if the string is empty
-        if data == '':
-            print('[normalize_list] Warning: Input is an empty string. Returning empty list.')
-            return []
-        data = [data]
-
-    out_list = list(map(lambda x: ''.join(e for e in x if e.isalnum()).lower(), data))
-
-    # Map the original values to the normalized values
-    if keep_originals:
-        # map input data : output data in a dictionary
-        out_dict = {k: v for k, v in list(zip(data, out_list))}        
-    
-        return out_list, out_dict
-    else:
-        return out_list
-    
 def match_lists(list_1: List, list_2: List, filter_doubles: bool = False) -> Dict:
     '''
     Use difflib to match two lists and returns a nested dictionary with the following structure:
@@ -361,43 +172,283 @@ def match_lists(list_1: List, list_2: List, filter_doubles: bool = False) -> Dic
         return {}
 
     output_dict = {}
+    match_relations_dict = {}
 
     if filter_doubles:
         best_match_strings = []
 
     for item in list_1:
-        best_match = 0
+        best_match_score = 0
         best_match_string = ''
 
         for item_2 in list_2:
             ratio = difflib.SequenceMatcher(None, item, item_2).ratio()
-            if ratio > best_match:
-                best_match = ratio
+            if ratio > best_match_score:
+                best_match_score = ratio
                 best_match_string = item_2
 
         if filter_doubles:
             if best_match_string in best_match_strings:
                 # Check if the new match is better
-                print(f"[match_lists] Debug: Matched {item} to {best_match_string} with a score of {np.round(best_match, 3)}, but it is already matched to {output_dict[best_match_string]['match']} with a score of {output_dict[best_match_string]['score']}")
-                if best_match > output_dict[best_match_string]['score']:
+                print(f"[match_lists] Debug: Matched {item} to {best_match_string} with a score of {np.round(best_match_score, 3)}, but it is already matched to {match_relations_dict[best_match_string]['match']} with a score of {match_relations_dict[best_match_string]['score']}")
+                if best_match_score > match_relations_dict[best_match_string]['score']:
                     # Update the output dictionary
-                    print(f'[match_lists] Debug: Updating to {item} with a score of {best_match}')
+                    print(f'[match_lists] Debug: Updating to {item} with a score of {best_match_score}')
                     output_dict[item] = {
                         'match': best_match_string,
-                        'score': np.round(best_match, 3)
+                        'score': np.round(best_match_score, 3)
+                    }
+                    # Update the reverse match for comparison and debugging purposes
+                    match_relations_dict[best_match_string] = {
+                        'match': item,
+                        'score': np.round(best_match_score, 3)
                     }
                 else:
-                    print(f'[match_lists] Debug: Keeping the previous match with a score of {output_dict[best_match_string]["score"]}')
+                    print(f'[match_lists] Debug: Keeping the previous match with a score of {match_relations_dict[best_match_string]["score"]}')
             else:
+                print(f"[match_lists] Debug: Matched {item} to {best_match_string} with a score of {np.round(best_match_score, 3)}")
+                # Add the new match to the list of best matches and the output dictionary
                 best_match_strings.append(best_match_string)
                 output_dict[item] = {
                 'match': best_match_string,
-                'score': np.round(best_match, 3)
+                'score': np.round(best_match_score, 3)
                  }
+                # Record the reverse match for comparison and debugging purposes
+                match_relations_dict[best_match_string] = {
+                    'match': item,
+                    'score': np.round(best_match_score, 3)
+                }
         else:
             output_dict[item] = {
                 'match': best_match_string,
-                'score': np.round(best_match, 3)
+                'score': np.round(best_match_score, 3)
             }
 
     return output_dict
+
+
+def get_input_data(input_file_paths: Union[List[str], str], matches: Dict) -> Dict:
+    """
+    Summary:
+        Read the input data from the given Excel files and return a nested dictionary
+    Args:
+        input_file_paths (Union[List[str], str]): List of paths to the input files
+        matches (Dict): Dictionary with the matches between the input and output data
+    Returns:
+        Dict: Nested dictionary containing the input data
+    """
+    
+    input_data = {}
+    for file_path in input_file_paths:
+        input_data_key = file_path.split('\\')[-2] # Use the folder name as key
+        # Check if key is in the matches dict
+        if input_data_key in matches.keys():
+            input_data[input_data_key] = {}
+        else:
+            continue # Immediately go to the next file if key is not in matches
+
+        # Load the workbook at the given path
+        wb = excel_to_workbook(file_path)
+        
+        if wb is None:
+            print(f'[get_input_data] Warning: Could not open {file_path}')
+            continue
+
+        scope_sheets = [sheet for sheet in wb.sheetnames if 'scope' in sheet.lower()]
+        
+        if len(scope_sheets) == 0:
+            print(f'[get_input_data] Warning: Could not find scope sheet in {file_path}')
+            continue
+        else:
+            for sheet in scope_sheets:
+                input_data[input_data_key][sheet] = _get_scope_data(wb, sheet)
+
+        wb.close()
+    
+    return input_data
+
+
+# The underscore (_) prefix means that this function is private and is
+# only used by modules in this package
+def _get_scope_data(wb: Workbook, sheet: str) -> Dict[str, list]:
+    '''
+    Get the scope data from the given workbook and sheet
+
+    Find key-value pairs by looking and previous and next cells
+
+    If:
+    x = colored cell
+    o = non-colored cell
+
+    And:
+    'o x o' means that: 
+    1. Previous cell is not colored
+    2. Current cell is colored
+    3. Next cell is not colored
+
+    Then:
+    Algorithm it triggered by current cell being colored, so middle is always 'x'
+    o x o -> key is in the previous cell, value is in the current cell
+    o x x -> key is in the next cell, value is in the current cell
+    x x o -> skip, since previous cell likely contains a value to some other key
+    x x x -> skip, since previous cell likely contains a value to some other key
+
+    Args:
+        wb (Workbook): Workbook to get the scope data from
+        sheet (str): Worksheet to get the scope data from
+
+    Returns:
+        result_dict (Dict[str, list]): Dictionary with the scope data
+    '''
+    result_dict = {}
+    sheet = wb[sheet]
+    max_row = sheet.max_row
+    max_col = sheet.max_column
+    
+    for row in range(1, max_row + 1):
+        # Don't load the first column, since previous cell can't load then
+        for col in range(2, max_col + 1):
+            prev_cell = sheet.cell(row=row, column=col-1)
+            cell = sheet.cell(row=row, column=col)
+            next_cell = sheet.cell(row=row, column=col+1)
+
+            # skip if previous cell is colored (since it likely contains a value to some other key)
+            if 'FFDDEBF7'.lower() in prev_cell.fill.start_color.index.lower():
+                    continue
+            # Check if the current cell color is FFDDEBF7
+            elif 'FFDDEBF7'.lower() in cell.fill.start_color.index.lower():
+                if next_cell.value is not None:
+                    # If it has the same color, then it's the key, else the previous cell is the key
+                    if 'FFDDEBF7'.lower() in next_cell.fill.start_color.index.lower():
+                        key = next_cell.value
+                        #print("[get_scope_data] next cell is key (1)")
+                    else:
+                        key = prev_cell.value
+                        #print("[get_scope_data] prev cell is key (1)")
+                # If previous cell is not None, then it's a key, else ignore current cell
+                elif prev_cell.value is not None:
+                    key = prev_cell.value
+                    #print("[get_scope_data] prev cell is key (2)")
+                else:
+                    continue
+
+                print(f"[get_scope_data] Key: {key}, Value: {cell.value}")
+                # Extra step. Possibly temporary until better matching technique are explored:
+                # If key ends with " ", remove it
+                if key.endswith(' '):
+                    key = key[:-1]
+                result_dict[key] = cell.value
+            else:
+                pass # equivalent to 'continue' in this case because end of loop
+    return result_dict
+
+
+def write_data_to_summary(data_dict: Dict, wb: Workbook, matches: Dict, settings: Dict) -> Workbook:
+
+    summary_mismatches = wb['Mismatched Data'] # Load the mismatches sheet
+    mismatch_count = 0 # Keep track of how many mismatches are found
+    mismatch_dict = {} # Nested dict to store keys, items and subitems of mismatches
+
+    for key in data_dict.keys():
+        print(f"Writing data from {key} to sheet {matches[key]['match']}")
+
+        # load sheet from summary file which matches matches[key]['match']
+        summary_sheet = wb[matches[key]['match']]
+        max_row = summary_sheet.max_row
+        max_col = summary_sheet.max_column
+
+        match_count = 0 # Keep track of how many matches are found for a given subitem
+        match_dict = {} # Keep track of which row and column a given subitem is found in
+        write_key = None # Keep track of which match_dict entry to use when writing data
+        write_data = None # Keep track of which data to write to the summary sheet
+
+        for item in data_dict[key].keys():
+            for subitem in data_dict[key][item].keys():
+                for row, col in itertools.product(range(1, max_row + 1), range(1, max_col + 1)):
+
+                    # Load cell value
+                    cell_value = summary_sheet.cell(row = row, column = col).value
+
+                    # Pre-process cell value
+                    if type(cell_value) == str:
+                        cell_value = _preprocess_cell(cell_value)
+
+                    # Try to match subitem to cell_value
+                    if subitem == cell_value:
+                        print(f"Found match for {subitem} at row {row} and column {col}")
+                        match_count += 1
+                        match_dict[match_count] = {"row": row, "col": col}
+                    elif str(subitem) in str(cell_value):
+                        print(f"{subitem} part of {cell_value} at row {row} and column {col}")
+                        match_count += 1
+                        match_dict[match_count] = {"row": row, "col": col}
+                    else:
+                        #print(f"No match for {subitem} at row {row} and column {col}")
+                        pass
+
+                # Handle various amounts of matches
+                if match_count > 1:
+                    if 'Scope 1'.lower() in item.lower():
+                        write_key = min(match_dict.keys()) # use match_dict entry with the lowest key
+                    elif 'Scope 3'.lower() in item.lower():
+                        write_key = max(match_dict.keys()) # use match_dict entry with the highest key
+                    else:
+                        print(f"WARNING: Multiple matches found for {subitem} in sheet {matches[key]['match']}") 
+                        pass # TODO # Handler (non-urgent)
+                elif match_count == 0:
+                    # Register mismatch
+                    mismatch_count += 1
+                    if key not in mismatch_dict.keys():
+                        mismatch_dict[key] = {}
+                    if item not in mismatch_dict[key].keys():
+                        mismatch_dict[key][item] = {}
+                    if subitem not in mismatch_dict[key][item].keys():
+                        mismatch_dict[key][item][subitem] = mismatch_count
+                        # write to mismatch sheet
+                        summary_mismatches.cell(row = mismatch_count+1, column = 1).value = key
+                        summary_mismatches.cell(row = mismatch_count+1, column = 2).value = item
+                        summary_mismatches.cell(row = mismatch_count+1, column = 3).value = subitem
+                        summary_mismatches.cell(row = mismatch_count+1, column = 4).value = "No match found"
+                    else:
+                        print(f"WARNING: {subitem} already in mismatch_dict")
+                        pass # TODO # Handler? (this bit was never reached in testing)
+                    continue
+                else:
+                    write_key = list(match_dict.keys())[0] # use match_dict entry with the only key
+
+                # Get data from dict, or generate if missing and settings allow
+                if data_dict[key][item][subitem] is not None:
+                    write_data = data_dict[key][item][subitem]
+                elif settings["Generate missing write data"]:
+                    write_data = "GENERATED: " + str(np.random.randint(0, 100))
+                else:
+                    write_data = None
+
+                # Write data to summary sheet if write_key is not None
+                if write_key is not None:
+                    summary_sheet.cell(row = match_dict[write_key]["row"], column = match_dict[write_key]["col"] + 1).value = write_data
+                
+                # Reset match_count and match_dict
+                match_count = 0
+                match_dict = {}
+          
+    wb.save(os.path.join(settings['Output file folder path'], settings["Output file name"]))
+    wb.close()
+
+    return 0 # Status code 0 if successful
+    
+
+# Will contain several steps, but for now just removes trailing spaces
+# The underscore (_) prefix means that this function is private and is
+# only used by modules in this package
+def _preprocess_cell(cell: str) -> str:
+    '''
+    Preprocess the given cell
+
+    Args:
+        cell (str): Cell to preprocess
+
+    Returns:
+        str: Preprocessed cell
+    '''
+    return cell.strip()
