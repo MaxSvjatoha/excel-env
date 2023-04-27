@@ -473,7 +473,7 @@ def write_data_to_summary(data_dict: Dict, wb: Workbook, matches: Dict, settings
                 match_count = 0
                 match_dict = {}
           
-        wb.save(os.path.join(settings['Output file folder path'], settings["Output file name"]))
+    wb.save(os.path.join(settings['Output file folder path'], settings["Output file name"]))
     wb.close()
 
     return 0 # Status code 0 if successful
