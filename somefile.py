@@ -1,3 +1,5 @@
+
+'''
 from fuzzywuzzy import fuzz
 
 def find_closest_match(query, choices):
@@ -16,3 +18,8 @@ query = 'aple'
 
 closest_match = find_closest_match(query, choices)
 print(f"The closest match to '{query}' is '{closest_match}'.")
+'''
+
+a = None
+a = int(a) + 1
+print(a)

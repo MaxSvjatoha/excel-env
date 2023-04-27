@@ -55,6 +55,8 @@ if __name__ == '__main__':
     utils.write_data_to_summary(data_dict = input_data_dict, wb = summary_wb, matches = matches, settings = settings)
 
     print("\nData write successful. Exiting script...\n")
+
+    #summary_wb.save(os.path.join(settings['Output file folder path'], settings["Output file name"]))
     '''
     for key in input_data_dict.keys():
         # use 'matches' dict to find where to write the data
