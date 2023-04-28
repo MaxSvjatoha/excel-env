@@ -344,7 +344,7 @@ def _get_scope_data(wb: Workbook, sheet: str) -> Dict[str, list]:
     return result_dict
 
 
-# NOTE: Could use some refactoring
+# NOTE: Could definitely use some refactoring
 def write_data_to_summary(data_dict: Dict, wb: Workbook, matches: Dict, settings: Dict) -> Workbook:
     """
     Writes data from a dictionary to a summary workbook, using a matching dictionary.
@@ -453,6 +453,7 @@ def write_data_to_summary(data_dict: Dict, wb: Workbook, matches: Dict, settings
                     
                     # Existing value workaround attempt
                     # NOTE: this is the final major issue to be resolved
+                    # NOTE 2: workaround not needed if scope 2 contains sums at the end of the sheet
                     '''
                     # check if cell contains data
                     if summary_sheet.cell(row = match_dict[write_key]["row"], column = match_dict[write_key]["col"] + 1).value is not None:
