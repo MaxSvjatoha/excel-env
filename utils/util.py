@@ -452,6 +452,7 @@ def write_data_to_summary(data_dict: Dict, wb: Workbook, matches: Dict, settings
                     print(f"[write_data_to_summary] Writing {write_data} to row {match_dict[write_key]['row']} and column {match_dict[write_key]['col'] + 1} (sheet: {matches[key]['match']}, {item}, cell name: {subitem})")
                     
                     # Existing value workaround attempt
+                    # NOTE: this is the final major issue to be resolved
                     '''
                     # check if cell contains data
                     if summary_sheet.cell(row = match_dict[write_key]["row"], column = match_dict[write_key]["col"] + 1).value is not None:
