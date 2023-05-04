@@ -1,5 +1,5 @@
 # excel-env
-A private repo for managing excel data.
+A repo for managing excel data. Was briefly iterated on as part of my work with managing climate activity data with Sigma Industry Development, but likely other solutions were used instead in the end.
 
 ## 💡 General idea
 There is a need to automate climate reporting at Danir and its subsidiaries. While the long-term solution would be to have an online user interface where each subsidiary could enter the required data, this is an intermediary step that acts as a proof of concept.
